@@ -1,0 +1,43 @@
+{
+  "type": "record",
+  "name": "TransferEvent",
+  "namespace": "com.account.service",
+  "fields": [
+    {
+      "name": "idTransferencia",
+      "type": "string"
+    },
+    {
+      "name": "idOrigem",
+      "type": "string"
+    },
+    {
+      "name": "idDestino",
+      "type": "string"
+    },
+    {
+      "name": "formaPagamento",
+      "type": {
+        "type": "enum",
+        "name": "FormaPagamento",
+        "symbols": ["PIX", "CARTAO", "BOLETO"]
+      }
+    },
+    {
+      "name": "valor",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 10,
+        "scale": 2
+      }
+    },
+    {
+      "name": "realizadaEm",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      }
+    }
+  ]
+}
