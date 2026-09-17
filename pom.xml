@@ -115,6 +115,11 @@
 						</goals>
 					</execution>
 				</executions>
+
+
+				<configuration>
+					<enableDecimalLogicalType>true</enableDecimalLogicalType>
+				</configuration>
 			</plugin>
 
 			<plugin>
