@@ -2,6 +2,9 @@ package com.example.FraudAnalysis.config;
 
 import com.account.service.TransferEvent;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import jakarta.annotation.PostConstruct;
+import org.apache.avro.Conversions;
+import org.apache.avro.specific.SpecificData;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,6 +26,9 @@ public class KafkaConfig {
     private String BootsTrapServers;
     @Value("${spring.kafka.properties.schema.registry.url}")
      private String shemaRegistry;
+
+
+
 
    @Bean
     public ConsumerFactory<String, TransferEvent> consumerFactory(){
