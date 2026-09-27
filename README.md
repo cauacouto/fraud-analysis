@@ -10,19 +10,19 @@ Este serviço faz parte de uma arquitetura distribuída composta por diferentes 
 
 O `fraud-analysis` recebe eventos de transferências realizadas pelo `account-service` e realiza uma análise para determinar se a operação deve ser aprovada ou rejeitada.
 
-Fluxo planejado:
+Fluxo de análise:
 
 ```text
 Account Service
       │
-      │ transfer.created
+      │ transfer.analysis.requested
       ▼
     Kafka
       │
       ▼
 Fraud Analysis
       │
-      │ análise
+      │ fraud.analysis.decision
       ▼
 ┌───────────────┐
 │               │
@@ -36,8 +36,7 @@ APROVADO     REJEITADO
 
 🟡 **Em desenvolvimento**
 
-O microsserviço já possui a estrutura inicial para consumo dos eventos de transferência através do Kafka.
-A implementação das regras de análise de fraude ainda está em construção.
+O microsserviço consome solicitações de análise, persiste uma decisão por transferência no MongoDB e publica o resultado para o `account-service`. A regra atual rejeita transferências acima do máximo configurado da mesma conta de origem no mesmo segundo UTC.
 
 ---
 
@@ -57,11 +56,7 @@ A implementação das regras de análise de fraude ainda está em construção.
 
 ## 📡 Kafka
 
-O serviço atua como **Consumer** do tópico:
-
-```
-transfer.created
-```
+O serviço consome solicitações do tópico configurável `fraud.kafka.topic.request` (padrão `transfer.analysis.requested`) e publica decisões no tópico `fraud.kafka.topic.decision` (padrão `fraud.analysis.decision`). A chave dos dois eventos é `idTransferencia`.
 
 O evento recebido contém as informações necessárias para análise da transferência:
 
@@ -74,7 +69,9 @@ O evento recebido contém as informações necessárias para análise da transfe
 | `valor`           | Valor da transferência            |
 | `realizadaEm`     | Data e hora da operação           |
 
-A chave utilizada no Kafka é o identificador da transferência (`idTransferencia`), o que permite manter os eventos relacionados à mesma transferência na mesma partição.
+O schema da solicitação fica em `src/main/avro/TranferEvent.avsc`. A resposta segue `src/main/avro/FraudDecisionEvent.avsc` e contém `idTransferencia`, `status` (`APROVADA` ou `REJEITADA`), `motivo` e `analisadaEm`. O ID da transferência é distinto dos IDs de conta em `idOrigem` e `idDestino`.
+
+O grupo consumidor padrão é `fraud-analysis-group`. Após três retries, falhas de processamento são encaminhadas ao tópico `fraud.analysis.decision.DLT`. Esses valores podem ser sobrescritos por propriedades Spring correspondentes.
 
 ---
 
@@ -113,19 +110,21 @@ Uma análise possui as seguintes informações:
 | `idOrigem`        | Conta de origem               |
 | `idDestino`       | Conta de destino              |
 | `valor`           | Valor analisado               |
-| `status`          | `APROVADO` ou `REJEITADO`     |
+| `statusTransfer`  | Decisão interna (`APROVADO` ou `REJEITADO`) |
 | `motivo`          | Motivo da decisão             |
+| `realizadaEm`     | Horário informado na solicitação |
+| `analisadaEm`     | Horário em que a decisão foi criada |
 
 ---
 
-## 🔄 Fluxo planejado
+## 🔄 Fluxo de decisão
 
 ```text
              ┌──────────────────┐
              │  Account Service │
              └────────┬─────────┘
                       │
-                      │ transfer.created
+                      │ transfer.analysis.requested
                       ▼
              ┌──────────────────┐
              │      Kafka       │
@@ -137,13 +136,15 @@ Uma análise possui as seguintes informações:
              │                  │
              │ Análise de risco │
              └────────┬─────────┘
-                      │
-                 ┌────┴────┐
-                 ▼         ▼
-             APROVADO   REJEITADO
+                      │ fraud.analysis.decision
+                      ▼
+             ┌──────────────────┐
+             │  Account Service │
+             │ confirma/rejeita │
+             └──────────────────┘
 ```
 
-Posteriormente, o resultado da análise poderá ser publicado em um novo evento (`fraud.approved` / `fraud.rejected`) para que o `account-service` possa continuar o processamento da transferência.
+O `account-service` mantém a transferência pendente até receber a decisão correlacionada pelo `idTransferencia`.
 
 ---
 
@@ -189,10 +190,9 @@ Fraud Analysis     → localhost:8082
 
 ## 🔐 Análise de fraude
 
-A implementação das regras de fraude está em desenvolvimento. Alguns critérios que poderão ser utilizados futuramente incluem:
+O máximo permitido é configurado por `fraud.analysis.max-transfers-per-second` (padrão `1`). Quando o total da mesma origem no mesmo segundo UTC ultrapassa esse máximo, a operação excedente é rejeitada com o motivo `FREQUENCIA_DE_TRANSFERENCIAS_ACIMA_DO_LIMITE`. Cada solicitação é registrada uma única vez por `idTransferencia` numa coleção de contagem no MongoDB, evitando que reentregas incrementem a frequência e coordenando instâncias concorrentes. Os registros de contagem expiram após um dia. Os buckets são segundos fixos UTC; operações que atravessam a virada do segundo ficam em buckets diferentes. Regras futuras podem incluir:
 
 - Valor da transferência
-- Frequência de transferências
 - Histórico de operações
 - Origem e destino
 - Forma de pagamento
