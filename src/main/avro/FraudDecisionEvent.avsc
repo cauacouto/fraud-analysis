@@ -1,0 +1,18 @@
+{
+  "type": "record",
+  "name": "FraudDecisionEvent",
+  "namespace": "com.account.service",
+  "fields": [
+    { "name": "idTransferencia", "type": "string" },
+    {
+      "name": "status",
+      "type": {
+        "type": "enum",
+        "name": "FraudDecisionStatus",
+        "symbols": ["APROVADA", "REJEITADA"]
+      }
+    },
+    { "name": "motivo", "type": ["null", "string"], "default": null },
+    { "name": "analisadaEm", "type": { "type": "long", "logicalType": "timestamp-millis" } }
+  ]
+}
