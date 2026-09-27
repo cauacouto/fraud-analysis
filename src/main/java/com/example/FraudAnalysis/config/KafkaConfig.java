@@ -43,6 +43,9 @@ public class KafkaConfig {
     @Value("${fraud.kafka.topic.decision-dlt}")
     private String decisionDlt;
 
+    @Value("${spring.kafka.listener.auto-startup:true}")
+    private boolean listenerAutoStartup;
+
     @Bean
     public ConsumerFactory<String, TransferEvent> consumerFactory() {
         Map<String, Object> props = new HashMap<>();
@@ -78,6 +81,7 @@ public class KafkaConfig {
         ConcurrentKafkaListenerContainerFactory<String, TransferEvent> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
+        factory.setAutoStartup(listenerAutoStartup);
         factory.setCommonErrorHandler(new DefaultErrorHandler(
                 new DeadLetterPublishingRecoverer(kafkaTemplate,
                         (record, exception) -> new TopicPartition(decisionDlt, -1)),
