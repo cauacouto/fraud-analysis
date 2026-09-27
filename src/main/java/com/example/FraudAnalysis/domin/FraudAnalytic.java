@@ -5,11 +5,14 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 
-@Document(collation = "Analysis")
+@Document(collection = "Analysis")
+@CompoundIndex(name = "idx_origem_realizada_em", def = "{'idOrigem': 1, 'realizadaEm': 1}")
 @Getter
 @Setter
 public class FraudAnalytic {
@@ -23,4 +26,6 @@ public class FraudAnalytic {
     private BigDecimal valor;
     private StatusTransfer statusTransfer;
     private String motivo;
+    private Instant realizadaEm;
+    private Instant analisadaEm;
 }
